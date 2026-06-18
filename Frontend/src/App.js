@@ -10,6 +10,7 @@ import Authentication from "./components/Authentication";
 import Dashboard from "./components/Dashboard/index";
 import Board from "./components/Board";
 import "./App.css";
+import VerifyEmail from "./components/VerifyEmail";
 
 function App() {
   const [token, setToken] = useState(null);
@@ -94,6 +95,8 @@ function App() {
 
       {/* Default redirect */}
       <Route path="*" element={<Navigate to={token ? "/dashboard" : "/auth"} />} />
+
+      <Route path="/verify/:token" element={<VerifyEmail />} />
     </Routes>
   );
 }
