@@ -12,10 +12,15 @@ const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // <--- Use this instead of host and port
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Must be false for port 587
     auth: { 
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS 
+    },
+    tls: {
+        rejectUnauthorized: false
     }
 });
 
