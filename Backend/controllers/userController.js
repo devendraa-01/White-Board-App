@@ -9,10 +9,11 @@ const crypto = require('crypto');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+    service: 'gmail', // <--- Use this instead of host and port
+    auth: { 
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS 
+    }
 });
 
 const createUser = async (req, res) => {
@@ -31,7 +32,7 @@ const createUser = async (req, res) => {
         await OtpModel.findOneAndUpdate(
             { email },
             { name, email, password: hashedPassword, otp: otpCode, createdAt: Date.now() },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' } // <--- CHANGED 'new: true' to 'returnDocument: "after"'
         );
 
         // 4. Send Email
