@@ -36,12 +36,12 @@ const createUser = async (req, res) => {
         // 4. Send Email via Resend
         console.log("4. Attempting to send email via Resend...");
         const { error: resendError } = await resend.emails.send({
-            from: 'CollaBoard <onboarding@resend.dev>',
+            from: 'WhiteSync <onboarding@resend.dev>',
             to: email,
-            subject: "Your CollaBoard Verification Code",
+            subject: "Your WhiteSync App Verification Code",
             html: `
                 <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                    <h2>Welcome to CollaBoard!</h2>
+                    <h2>Welcome to WhiteSync!</h2>
                     <p>Your email verification code is:</p>
                     <h1 style="color: #4A90E2; letter-spacing: 5px;">${otpCode}</h1>
                     <p>This code will expire in 10 minutes.</p>
