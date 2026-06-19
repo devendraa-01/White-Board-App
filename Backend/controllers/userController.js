@@ -8,6 +8,9 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const transporter = nodemailer.createTransport({
     service: 'gmail', // <--- Use this instead of host and port
     auth: { 
