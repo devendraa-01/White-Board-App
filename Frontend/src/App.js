@@ -88,15 +88,16 @@ function App() {
               </ToolboxProvider>
             </BoardProvider>
           ) : (
-            <Navigate to="/auth" />
+             <Navigate to="/auth" />
           )
         }
       />
 
+      {/* Changed this route: Removed the /:token parameter */}
+      <Route path="/verify" element={<VerifyEmail />} />
+
       {/* Default redirect */}
       <Route path="*" element={<Navigate to={token ? "/dashboard" : "/auth"} />} />
-
-      <Route path="/verify/:token" element={<VerifyEmail />} />
     </Routes>
   );
 }

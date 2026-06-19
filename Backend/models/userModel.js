@@ -21,12 +21,8 @@ const userSchema = new mongoose.Schema({
     },
     isVerified: { 
         type: Boolean,
-        default: false
-    }, // New: Tracks email verification
-    verificationToken: { 
-        type: String
-    }, // New: Stores the token sent via email
-    
+        default: true // Users in this DB are verified by default now
+    }
 },{
     timestamps: true,
     collection: 'Users'
@@ -37,14 +33,7 @@ userSchema.statics.createUser = async function (name,email,password) {
         const salt = 10;
         const hashedPassword = await bcrypt.hash(password,salt);
         
-        const user = new this(
-            {
-                name,
-                email,
-                password:hashedPassword
-            }
-        );
-
+        const user = new this({ name, email, password: hashedPassword });
         return user.save();
     } 
     catch (error) {
@@ -55,16 +44,13 @@ userSchema.statics.createUser = async function (name,email,password) {
 userSchema.statics.loginUser = async function (email,password) {
     try {
         const user = await this.findOne({email});
-        
-        if(!user){
-            throw new Error("User not found");
-        }
+        if(!user) throw new Error("User not found");
     
-        const match = await bcrypt.compare(password,user.password);
+        // If Google user tries to login with standard password without setting one
+        if(!user.password) throw new Error("Please login with Google");
 
-        if(!match){
-            throw new Error("Invalid passowrd");
-        }
+        const match = await bcrypt.compare(password,user.password);
+        if(!match) throw new Error("Invalid passowrd");
 
         return user;
     }

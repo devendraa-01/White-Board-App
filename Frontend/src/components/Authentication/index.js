@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { GoogleLogin } from '@react-oauth/google';
+import { useNavigate } from "react-router-dom"; // <-- Imported useNavigate
 import "./index.css"; 
 
 export default function Auth({ onLogin }) {
@@ -7,6 +8,8 @@ export default function Auth({ onLogin }) {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [message, setMessage] = useState(null);
   const [status, setStatus] = useState(""); 
+  
+  const navigate = useNavigate(); // <-- Initialize navigate
 
   const isSignup = mode === "signup";
 
@@ -85,15 +88,14 @@ export default function Auth({ onLogin }) {
 
       if (res.ok) {
         if (data.token && data.user) {
+          // Successful Login
           localStorage.setItem("token", data.token);
           localStorage.setItem("userId", data.user.userId);
           localStorage.setItem("userName", data.user.name);
           onLogin(data.token);
         } else if (isSignup) {
-          setMode("login");
-          setStatus("success");
-          setMessage("Registration successful! Please check your email to verify your account.");
-          setForm({ ...form, password: "", name: "" }); 
+          // Registration successful! Redirect to the OTP verification page
+          navigate("/verify"); 
         }
       } else {
         setStatus("error");

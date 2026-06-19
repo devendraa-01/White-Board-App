@@ -1,4 +1,6 @@
 const userModel = require('../models/userModel');
+const OtpModel = require('../models/otpModel'); // Import the new OTP model
+const bcrypt = require('bcrypt'); // Import bcrypt for hashing before temporary storage
 require("dotenv").config();
 const JWT = require("jsonwebtoken");
 const { OAuth2Client } = require('google-auth-library');
@@ -9,7 +11,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: true,
+    secure: false,
     auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
 
@@ -17,24 +19,37 @@ const createUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
         
-        // Create user
-        const newUser = await userModel.createUser(name, email, password);
-        
-        // Generate verification token
-        const token = crypto.randomBytes(32).toString("hex");
-        newUser.verificationToken = token;
-        await newUser.save();
+        // 1. Check if user already exists in the main DB
+        const existingUser = await userModel.findOne({ email });
+        if (existingUser) return res.status(400).json({ error: "User with this email already exists." });
 
-        // Send Email
-        const url = `https://white-board-app-jade.vercel.app/verify/${token}`;
+        // 2. Hash password and generate OTP
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // 3. Save to temporary OTP collection (Upsert prevents multiple entries for same email)
+        await OtpModel.findOneAndUpdate(
+            { email },
+            { name, email, password: hashedPassword, otp: otpCode, createdAt: Date.now() },
+            { upsert: true, new: true }
+        );
+
+        // 4. Send Email
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
-            subject: "Verify your CollaBoard Account",
-            html: `<h3>Click <a href="${url}">here</a> to verify your email.</h3>`
+            subject: "Your CollaBoard Verification Code",
+            html: `
+                <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+                    <h2>Welcome to CollaBoard!</h2>
+                    <p>Your email verification code is:</p>
+                    <h1 style="color: #4A90E2; letter-spacing: 5px;">${otpCode}</h1>
+                    <p>This code will expire in 10 minutes.</p>
+                </div>
+            `
         });
 
-        res.status(201).json({ message: "Registration successful. Please check your email to verify your account." });
+        res.status(201).json({ message: "Registration initiated. Please check your email for the verification code." });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -42,14 +57,26 @@ const createUser = async (req, res) => {
 
 const verifyEmail = async (req, res) => {
     try {
-        const user = await userModel.findOne({ verificationToken: req.params.token });
-        if (!user) return res.status(400).json({ error: "Invalid or expired token" });
+        const { email, code } = req.body;
 
-        user.isVerified = true;
-        user.verificationToken = undefined;
-        await user.save();
+        // 1. Check the temporary OTP collection
+        const tempUser = await OtpModel.findOne({ email, otp: code });
+        if (!tempUser) return res.status(400).json({ error: "Invalid or expired verification code." });
 
-        res.status(200).json({ message: "Email verified successfully!" });
+        // 2. Move user to the main Users collection
+        // Since the password is already hashed, we save it directly to the model
+        const newUser = new userModel({
+            name: tempUser.name,
+            email: tempUser.email,
+            password: tempUser.password,
+            isVerified: true
+        });
+        await newUser.save();
+
+        // 3. Delete the temporary record
+        await OtpModel.deleteOne({ email });
+
+        res.status(200).json({ message: "Email verified successfully! You can now log in." });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -64,7 +91,6 @@ const login = async (req, res) => {
         if (!user.isVerified) return res.status(403).json({ error: "Please verify your email before logging in." });
 
         const token = JWT.sign({ email: user.email }, process.env.JWT_ACCESS_SECRET, { expiresIn: "7h" });
-
         res.status(200).json({ token, user: { name: user.name, email: user.email, userId: user._id } });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -82,10 +108,12 @@ const googleLogin = async (req, res) => {
 
         let user = await userModel.findOne({ email });
         
-        // If user doesn't exist, create them automatically and set as verified
         if (!user) {
             user = new userModel({ name, email, isVerified: true });
             await user.save();
+        } else if (!user.isVerified) {
+             user.isVerified = true;
+             await user.save();
         }
 
         const token = JWT.sign({ email: user.email }, process.env.JWT_ACCESS_SECRET, { expiresIn: "7h" });
@@ -99,16 +127,7 @@ const googleLogin = async (req, res) => {
 const getUserProfile = async (req,res) =>{
     const email = req.email;
     const user = await userModel.getUser(email);
-    res.json({
-        name:user.name,
-        email:user.email
-    });
+    res.json({ name:user.name, email:user.email });
 }
 
-module.exports = {
-    createUser,
-    verifyEmail,
-    login,
-    googleLogin,
-    getUserProfile,
-};
+module.exports = { createUser, verifyEmail, login, googleLogin, getUserProfile };

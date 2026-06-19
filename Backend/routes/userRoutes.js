@@ -12,6 +12,6 @@ router.get('/user', authorize, getUserProfile)
 
 router.post('/google-login', googleLogin);
 
-router.get('/verify/:token', verifyEmail);
+router.post("/verify", verifyEmail);
 
 module.exports = router; 
