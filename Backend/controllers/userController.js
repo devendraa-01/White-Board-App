@@ -26,17 +26,21 @@ const transporter = nodemailer.createTransport({
 
 const createUser = async (req, res) => {
     try {
+        console.log("--- STARTING REGISTRATION ---");
         const { name, email, password } = req.body;
         
         // 1. Check if user already exists in the main DB
+        console.log("1. Checking main DB for existing user...");
         const existingUser = await userModel.findOne({ email });
         if (existingUser) return res.status(400).json({ error: "User with this email already exists." });
 
         // 2. Hash password and generate OTP
+        console.log("2. Hashing password...");
         const hashedPassword = await bcrypt.hash(password, 10);
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         // 3. Save to temporary OTP collection (Upsert prevents multiple entries for same email)
+        console.log("3. Saving to temporary OTP DB...");
         await OtpModel.findOneAndUpdate(
             { email },
             { name, email, password: hashedPassword, otp: otpCode, createdAt: Date.now() },
@@ -44,6 +48,7 @@ const createUser = async (req, res) => {
         );
 
         // 4. Send Email
+        console.log("4. Attempting to send email via Nodemailer...");
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
@@ -57,9 +62,10 @@ const createUser = async (req, res) => {
                 </div>
             `
         });
-
+        console.log("5. Email sent! Sending success response to frontend...");
         res.status(201).json({ message: "Registration initiated. Please check your email for the verification code." });
     } catch (error) {
+        console.error("!!! ERROR CAUGHT IN CATCH BLOCK !!!", error);
         res.status(500).json({ error: error.message });
     }
 }
